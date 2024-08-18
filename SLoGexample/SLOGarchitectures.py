@@ -78,6 +78,5 @@ class GraphSLoG_v3(nn.Module):
         self.alpha_2 = nn.Parameter(torch.randn(self.K))  
 
     def forward(self, Y):
-#         return SLOGobj.myFunction_slog_1(self.rho_1,self.eta_1,self.lmbd,self.alpha_1,self.alpha_2, self.beta_1, self.beta_2, self.beta_3,self.gamma_1,self.gamma_2,self.gamma_3, self.V, Y, self.C, self.K)
         return SLOGobj.myFunction_slog_3(self.rho_1,self.eta_1,self.lmbd,self.alpha_1,self.alpha_2, self.beta_1, self.beta_2, self.beta_3,self.gamma_1,self.M,self.m, self.V, Y, self.K)
     

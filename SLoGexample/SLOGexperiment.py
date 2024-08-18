@@ -161,7 +161,7 @@ class slog_experiments():
         thisLoss = SLOGtools.myLoss
         thisEvaluator = SLOGevaluator.evaluate
         
-        thisObject = SLOGobj.myFunction_slog_3
+        thisObject = SLOGobj.myFunction_slog_3 # SLoG-Net with learnable constraint
         SLOG_net = SLOGarchi.GraphSLoG_v3(V,self.nNodes,self.q,self.K, thisObject)        
 
         model_name = 'SLOG-Net'
@@ -170,7 +170,7 @@ class slog_experiments():
         thisTrainer = SLOGtrainer.slog_Trainer
 
         myModel = SLOGmodel.Model(SLOG_net,thisLoss,thisOptim, thisTrainer,thisEvaluator,device, model_name,  saveDir)
-        # myModel.graph = G
+        
         result_train = myModel.train(data,self.nEpochs, self.batchsize, validationInterval = 40,trainMode = self.trainMode, filterTrainType = self.filterTrainType) # model, data, nEpochs, batchSize
         
         best_model = result_train['bestModel']

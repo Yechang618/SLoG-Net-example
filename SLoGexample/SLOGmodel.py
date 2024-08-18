@@ -121,7 +121,6 @@ class Model:
         if not os.path.exists(saveModelDir):
             os.makedirs(saveModelDir)            
         saveFile = os.path.join(saveModelDir, self.name) 
-#         print('Saved to', saveFile+'Archit'+ label+'.ckpt')
         torch.save(self.archit.state_dict(), saveFile+"Archit"+ label+ ".ckpt")
         torch.save(self.optim.state_dict(), saveFile+"Optim"+label+ ".ckpt")
 
