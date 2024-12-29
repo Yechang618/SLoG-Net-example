@@ -258,7 +258,6 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
         simuParas['N_realiz'] = N_realiz  
 
     ## Model settings
-    #
     if 'modelSettings' in kwargs.keys():
         modelSettings = kwargs['modelSettings']
     else:
@@ -279,9 +278,16 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
         thisObject = modelSettings['thisObject']
     else:
         thisObject = SLOGobj.myFunction_slog_1
+
+    if 'device' in simuParas.keys():
+        device = simuParas['device']
+    else:
+        device = 'cpu'
+        simuParas['device'] = device  
+
  
     model_name = 'SLOG-Net'
-    device = 'gpu'
+    # device = 'gpu'
     optimAlg = 'ADAM'
     learningRate = 0.001
     beta1 = 0.9
@@ -308,9 +314,6 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
         X = to_numpy(X)
         g0 = to_numpy(g0)
         V = to_numpy(V)
-        # if normalize_g_hat:
-        #     g0 = nNodes*g0/np.sum(g0)
-        # else:
         g0 = C*g0/np.sum(g0)
         h0 = 1./g0
         H = np.dot(V,np.dot(np.diag(h0),V.T))
@@ -334,7 +337,6 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
         
         # if normalize_g_hat:
         g_hat = C*g_hat/np.sum(g_hat)      
-        
         Z = linalg.khatri_rao(np.dot(Y.T,V),V)
         x_recv = np.dot(Z,g_hat)
         X_recv = x_recv.reshape((P,nNodes)).T
@@ -343,17 +345,254 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
         re_x_2 = LA.norm(X_recv + X,'fro')/LA.norm(X,'fro')
         re_g_2 = LA.norm(g0 + g_hat)/LA.norm(g0) 
         if re_g_1 > re_g_2:
-            re_g[n_realiz] = re_g_2
-            re_x[n_realiz] = re_x_2
+            re_g[n_realiz], re_x[n_realiz] = re_g_2, re_x_2
             acc_x[n_realiz] = accuracy_score(X.reshape(nNodes*P)> 0.1, -X_recv.reshape(nNodes*P)>0.1)
         else:
-            re_g[n_realiz] = re_g_1
-            re_x[n_realiz] = re_x_1 
+            re_g[n_realiz], re_x[n_realiz] = re_g_1, re_x_1 
             acc_x[n_realiz] = accuracy_score(X.reshape(nNodes*P)> 0.1, -X_recv.reshape(nNodes*P)>0.1)              
-    result['re_x'] = re_x    
-    result['re_g'] = re_g     
-    result['acc_x'] = acc_x    
-    result['elapse'] = elapse
+    result = {'re_x': re_x,
+          're_g': re_g,
+          'acc_x': acc_x,
+          'elapse': elapse
+    }
+    return result
+
+def test_admmCompare_local(nNodes, P, S, exp_result, **kwargs):
+    ## Test: compare with ADMM with different P.
+
+    if 'modelParas' in kwargs.keys():
+        modelParas = kwargs['modelParas']
+    else:
+        modelParas = {}
+
+    if 'visual' in kwargs.keys():
+        visual = kwargs['visual']
+    else:
+        visual = False
+
+    if 'q' in modelParas.keys():
+        q = modelParas['q']
+    else:
+        q = 4
+        
+    if 'simuParas' in kwargs.keys():
+        simuParas = kwargs['simuParas']
+    else:
+        simuParas = {}        
+    
+    if 'alpha' in simuParas.keys():
+        alpha = simuParas['alpha']
+    else:
+        alpha = 1.0
+        simuParas['alpha'] = alpha
+           
+    graphType = 'ER'
+
+    if 'graphOptions' in simuParas.keys():
+        graphOptions = simuParas['graphOptions']
+    else:
+        graphOptions = {} # Dictionary of options to pass to the graphTools.createGraph function
+        graphOptions['probIntra'] = 0.3 # Probability of drawing edges
+        simuParas['graphOptions'] = graphOptions
+
+    if 'L' in simuParas.keys():
+        L = simuParas['L']
+    else:
+        L = 5
+        simuParas['L'] = L
+        
+    filterType = 'h'
+    simuParas['filterType'] = filterType    
+        
+    if 'noiseLevel' in simuParas.keys():
+        noiseLevel = simuParas['noiseLevel']
+    else:
+        noiseLevel = 0
+        simuParas['noiseLevel'] = noiseLevel        
+
+    if 'noiseType' in simuParas.keys():
+        noiseType = simuParas['noiseType']
+    else:
+        noiseType = 'gaussion'
+        simuParas['noiseType'] = noiseType        
+
+    if 'C' in simuParas.keys():
+        C = simuParas['C']
+    else:
+        C = nNodes
+        simuParas['C'] = C        
+
+    if 'K' in simuParas.keys():
+        K = simuParas['K']
+    else:
+        K = 5
+        simuParas['K'] = K        
+
+    if 'N_realiz' in simuParas.keys():
+        N_realiz = simuParas['N_realiz']
+    else:
+        N_realiz = 10
+        simuParas['N_realiz'] = N_realiz  
+    supp_thres = 0.1
+
+    ## Model settings
+    if 'modelSettings' in kwargs.keys():
+        modelSettings = kwargs['modelSettings']
+    else:
+        modelSettings = {}
+              
+    if 'thisLoss' in modelSettings.keys():
+        thisLoss = modelSettings['thisLoss']
+    else:
+        thisLoss = SLOGtools.myLoss
+        
+    if 'thisEvaluator' in modelSettings.keys():
+        thisEvaluator = modelSettings['thisEvaluator']
+    else:
+        thisEvaluator = SLOGevaluator.evaluate   
+        
+    if 'thisObject' in modelSettings.keys():
+        thisObject = modelSettings['thisObject']
+    else:
+        thisObject = SLOGobj.myFunction_slog_1
+
+    if 'device' in simuParas.keys():
+        device = simuParas['device']
+    else:
+        device = 'cpu'
+        simuParas['device'] = device  
+
+    model_name = 'SLOG-Net'
+    optimAlg = 'ADAM'
+    learningRate, beta1, beta2 = 0.001,0.9, 0.999
+
+    # modelDirList
+    label = 'Best'
+    saveDir = exp_result['saveDir']
+    G = exp_result['Graph']
+    loadedModel = exp_result['model']
+    GA = G.A
+    d,An, eigenvalues, V = SLOGtools.get_eig_normalized_adj(GA)
+    gso = An
+    # Test begins
+    result = {}
+
+    re_x_slog = np.zeros(N_realiz)
+    re_g_slog = np.zeros(N_realiz)  
+    acc_x_slog = np.zeros(N_realiz)
+    re_x_admm   = np.zeros(N_realiz) 
+    re_g_admm   = np.zeros(N_realiz) 
+    acc_x_admm = np.zeros(N_realiz)       
+    elapse_slog = np.zeros(N_realiz)
+    elapse_admm = np.zeros(N_realiz)
+
+    ## Visualization samples
+    visual_X0 = np.zeros([nNodes, P, N_realiz])
+    visual_Y = np.zeros([nNodes, P, N_realiz])
+    visual_g0 = np.zeros([nNodes, N_realiz])
+    visual_X_slog = np.zeros([nNodes, P, N_realiz])
+    visual_g_slog = np.zeros([nNodes, N_realiz])
+    visual_X_admm = np.zeros([nNodes, P, N_realiz])
+    visual_g_admm = np.zeros([nNodes, N_realiz])
+    
+    for n_realiz in range(N_realiz):
+        X = SLOGtools.X_generate(nNodes,P,S)
+        g0 = SLOGtools.h_generate_gso(nNodes,alpha, eigenvalues,L)
+        X = to_numpy(X)
+        g0 = to_numpy(g0)
+        V = to_numpy(V)
+        g0 = C*g0/np.sum(g0)
+        h0 = 1./g0
+        H = np.dot(V,np.dot(np.diag(h0),V.T))
+        if noiseType == 'gaussion':
+            noise = np.random.normal(0,1,[nNodes, P])
+            noise = noise/LA.norm(noise,'fro')*LA.norm(X,'fro')
+        elif noiseType == 'uniform':
+            noise = np.random.uniform(-1,1,[nNodes, P])
+            noise = noise/np.max(np.abs(noise))*np.max(np.abs(X))
+        else:
+            noise = np.zeros([nNodes, P])
+        Y = np.dot(H,X) + noiseLevel*noise
+        Y_test = to_torch(Y)
+
+        start_timer = timer()
+        x_hat, g_hat = loadedModel.archit(Y_test)     
+        end_timer = timer()
+        elapse_slog[n_realiz] = end_timer - start_timer
+
+        g_hat = to_numpy(g_hat)  
+        g_hat = C*g_hat/np.sum(g_hat)      
+        Z = linalg.khatri_rao(np.dot(Y.T,V),V)
+
+        re_g_1 = LA.norm(g0 - g_hat)/LA.norm(g0)
+        re_g_2 = LA.norm(g0 + g_hat)/LA.norm(g0) 
+        if re_g_1 > re_g_2:
+            re_g_slog[n_realiz] = re_g_2
+            g_hat = -g_hat
+        else:
+            re_g_slog[n_realiz]= re_g_1
+        x_recv = np.dot(Z,g_hat)
+        X_recv = x_recv.reshape((P,nNodes)).T
+        re_x_slog[n_realiz] = LA.norm(X_recv - X,'fro')/LA.norm(X,'fro')
+        acc_x_slog[n_realiz] = accuracy_score(X.reshape(nNodes*P)> supp_thres, -X_recv.reshape(nNodes*P)>supp_thres)  
+
+        # ADMM solver
+        rho_0 = torch.tensor(1).to(device,dtype = torch.float64)
+        eta_0 = torch.tensor(1).to(device,dtype = torch.float64)    
+        N_ite = 10000  
+        max_re = 1e-6
+        Ct = torch.tensor(C).to(device,dtype = torch.float64) 
+
+        start_timer = timer()
+        x_hat_admm,g_hat_admm,n_ite,max_re_matched = admm_solver(Y_test, V,rho_0,eta_0,Ct,N_ite,max_re = max_re,device = device)
+        end_timer = timer()
+        elapse_admm[n_realiz] = end_timer - start_timer
+
+        x_hat_admm, g_hat_admm = x_hat_admm.cpu().numpy(), g_hat_admm.cpu().numpy()
+
+        g_hat_admm = C*g_hat_admm/np.sum(g_hat_admm)             
+        re_g_admm_1 = LA.norm(g0 - g_hat_admm)/LA.norm(g0)
+        re_g_admm_2 = LA.norm(g0 + g_hat_admm)/LA.norm(g0) 
+        if re_g_admm_1 > re_g_admm_2:
+            g_hat_admm = -g_hat_admm
+            re_g_admm[n_realiz] = re_g_admm_2          
+        else:
+            re_g_admm[n_realiz] = re_g_admm_1
+        
+        x_recv_admm = np.dot(Z,g_hat_admm)
+        X_recv_admm = x_recv_admm.reshape((P,nNodes)).T
+        re_x_admm[n_realiz] = LA.norm(X_recv_admm - X,'fro')/LA.norm(X,'fro')
+        acc_x_admm[n_realiz] = accuracy_score(np.abs(X.reshape(nNodes*P))> supp_thres, np.abs(X_recv_admm.reshape(nNodes*P))>supp_thres)
+
+        # Recording visualization
+        if visual:
+          visual_X0[:,:,n_realiz] = X
+          visual_Y[:,:,n_realiz] = Y
+          visual_g0[:,n_realiz] = g0
+          visual_X_slog[:,:,n_realiz] = X_recv
+          visual_g_slog[:,n_realiz] = g_hat
+          visual_X_admm[:,:,n_realiz] = X_recv_admm
+          visual_g_admm[:,n_realiz] = g_hat_admm
+        print('SLOG-net: ',re_x_slog[n_realiz],re_g_slog[n_realiz],acc_x_slog[n_realiz],', run time:',elapse_slog[n_realiz])
+        print('ADMM: ',re_x_admm[n_realiz],re_g_admm[n_realiz],acc_x_admm[n_realiz],', run time:',elapse_admm[n_realiz])
+        if not np.isnan(re_x_admm[n_realiz]):
+          n_realiz += 1                        
+    result = {'re_x_slog': re_x_slog,  # Relative error of X for SLoG-Net
+          're_g_slog': re_g_slog,  # Relative error of g for SLoG-Net
+          'acc_x_slog': acc_x_slog, # Accuracy of support estimate for SLoG-Net
+          'elapse_slog': elapse_slog, # Elapse time for SLoG-Net
+          're_x_admm': re_x_admm,  # Relative error of X for ADMM slover
+          're_g_admm': re_g_admm,  # Relative error of g for ADMM slover
+          'acc_x_admm': acc_x_admm,   # Accuracy of support estimate for ADMM slover
+          'elapse_admm': elapse_admm, # Elapse time for ADMM slover
+          'visual_X0': visual_X0, 
+          'visual_Y': visual_Y,
+          'visual_g0': visual_g0,
+          'visual_X_slog':visual_X_slog,
+          'visual_g_slog':visual_g_slog,
+          'visual_X_admm':visual_X_admm,
+          'visual_g_admm':visual_g_admm                      
+    }  
     return result
 
 ############### Functions ############# 
@@ -372,3 +611,30 @@ def to_torch(x):
     elif 'torch' in repr(dataType):
         return x  
     
+############### ADMM solver ###########
+def admm_solver(Y,V,rho_0,eta_0,C,N_ite,max_re = 1e-6, device = 'cpu'):
+    [N,P] = Y.shape
+    Z = torch.tensor(linalg.khatri_rao(np.dot(np.transpose(Y),V),V)).double()
+    V = torch.from_numpy(V).double()
+    eta = torch.tensor(np.random.rand(1)).to(device,dtype = torch.float64)    
+    g = torch.tensor(np.random.rand(N)).to(device,dtype = torch.float64)
+    x = torch.tensor(np.random.rand(N*P)).to(device,dtype = torch.float64)
+    u = torch.tensor(np.random.rand(N*P)).to(device,dtype = torch.float64)
+    II = torch.ones(N,N).to(device,dtype = torch.float64)
+    In = torch.ones(N,1).to(device,dtype = torch.float64) # ones(N,1)
+    n_ite, max_re_matched = 0, 0
+    C = N
+    ZIk_inv = torch.inverse(rho_0 * Z.T @ Z + eta_0 * torch.ones(N,N,dtype=torch.double))
+    while n_ite < N_ite and max_re_matched ==0 :
+        g_old, x_old = g, x
+        g = ZIk_inv @ (Z.T @ (rho_0*x-u) + (eta_0*C - eta)*torch.ones(N,dtype=torch.double))
+        x = Z @ g + u/rho_0
+        x = torch.sign(x)*torch.maximum(torch.abs(x)-1/rho_0, torch.zeros(N*P,dtype=torch.double))
+        u = u + rho_0*(Z @ g - x)
+        eta = eta + eta_0*(In.T @ g - C)
+        re = torch.norm(g-g_old)/(1e-10+torch.norm(g_old))
+        if re < max_re**2:
+            max_re_matched = 1
+            break
+        n_ite += 1
+    return x,g,n_ite,max_re_matched   
