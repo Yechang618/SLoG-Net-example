@@ -140,93 +140,66 @@ class slog_experiments():
                                   'nTest': self.nTest,
                                   'useGPU': useGPU})
 
-
-        optimAlg = 'ADAM'   
-        learningRate = 0.01 
-        beta1 = 0.9 
-        beta2 = 0.999
-            
-        ## Graph generation
-        G = SLOGtools.Graph(self.graphType, self.nNodes, self.graphOptions, save_dir = saveDir)
-        G.computeGFT()
-        d,An, eigenvalues, V   = SLOGtools.get_eig_normalized_adj(G.A)
-        
-        ## Data generation
-        data = SLOGdata.SLOG_GeneralData(G, self.nTrain, self.nValid, self.nTest, self.S, V, eigenvalues, L = self.L, alpha = self.alpha,filterType = self.filterType, noiseLevel = self.noiseLevel, noiseType = self.noiseType)
-        data.expandDims()
-        
-        C = self.C
-        K = self.K
-        filterTrainType = self.filterTrainType #'g'
-        thisLoss = SLOGtools.myLoss
-        thisEvaluator = SLOGevaluator.evaluate
-        
-        thisObject = SLOGobj.myFunction_slog_3 # SLoG-Net with learnable constraint
-        SLOG_net = SLOGarchi.GraphSLoG_v3(V,self.nNodes,self.q,self.K, thisObject)        
-
-        model_name = 'SLOG-Net'
-
-        thisOptim = optim.Adam(SLOG_net.parameters(), lr = learningRate, betas = (beta1,beta2))
-        thisTrainer = SLOGtrainer.slog_Trainer
-
-        myModel = SLOGmodel.Model(SLOG_net,thisLoss,thisOptim, thisTrainer,thisEvaluator,device, model_name,  saveDir)
-        
-        result_train = myModel.train(data,self.nEpochs, self.batchsize, validationInterval = 40,trainMode = self.trainMode, filterTrainType = self.filterTrainType) # model, data, nEpochs, batchSize
-        
-        best_model = result_train['bestModel']
-        minLossValid = result_train['minLossValid']
-        minLossTrain = result_train['minLossTrain']
-          
-        results = {}
-        results['model'] = myModel
-        results['training result'] = result_train
-        results['Graph'] = G
-        results['saveDir'] = saveDir
-        
-        return results
-
-def test_local(nNodes,P,S, exp_result, **kwargs):
-    ## Assertation
+def test_local(nNodes, P, S, exp_result, **kwargs):
+    """
+    Function to test the SLOG-Net model locally using generated data.
     
+    Parameters:
+    nNodes : int
+        Number of nodes in the graph.
+    P : int
+        Number of input signals.
+    S : int
+        Graph shift operator.
+    exp_result : dict
+        Dictionary containing experiment results, including the trained model and graph information.
+    **kwargs : dict
+        Optional parameters for model and simulation settings.
+    """
+    
+    ## Extract model parameters from kwargs, or use default values
     if 'modelParas' in kwargs.keys():
         modelParas = kwargs['modelParas']
     else:
         modelParas = {}
-
+    
     if 'q' in modelParas.keys():
         q = modelParas['q']
     else:
         q = 4
         
+    ## Extract simulation parameters, or use default values
     if 'simuParas' in kwargs.keys():
         simuParas = kwargs['simuParas']
     else:
-        simuParas = {}        
+        simuParas = {}
     
     if 'alpha' in simuParas.keys():
         alpha = simuParas['alpha']
     else:
         alpha = 1.0
         simuParas['alpha'] = alpha
-           
-    graphType = 'ER'
-
+    
+    graphType = 'ER'  # Default graph type is Erdos-Renyi
+    
+    ## Graph options setup
     if 'graphOptions' in simuParas.keys():
         graphOptions = simuParas['graphOptions']
     else:
-        graphOptions = {} # Dictionary of options to pass to the graphTools.createGraph function
-        graphOptions['probIntra'] = 0.3 # Probability of drawing edges
+        graphOptions = {}  # Dictionary of options for graph creation
+        graphOptions['probIntra'] = 0.3  # Probability of drawing edges
         simuParas['graphOptions'] = graphOptions
-
+    
+    ## Define various simulation parameters if not provided
     if 'L' in simuParas.keys():
         L = simuParas['L']
     else:
         L = 5
         simuParas['L'] = L
-        
-    filterType = 'h'
+    
+    filterType = 'h'  # Default filter type
     simuParas['filterType'] = filterType    
-        
+    
     if 'noiseLevel' in simuParas.keys():
         noiseLevel = simuParas['noiseLevel']
     else:
@@ -236,7 +209,7 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
     if 'noiseType' in simuParas.keys():
         noiseType = simuParas['noiseType']
     else:
-        noiseType = 'gaussion'
+        noiseType = 'gaussian'
         simuParas['noiseType'] = noiseType        
 
     if 'C' in simuParas.keys():
@@ -256,105 +229,100 @@ def test_local(nNodes,P,S, exp_result, **kwargs):
     else:
         N_realiz = 10
         simuParas['N_realiz'] = N_realiz  
-
-    ## Model settings
+    
+    ## Extract or set model settings
     if 'modelSettings' in kwargs.keys():
         modelSettings = kwargs['modelSettings']
     else:
         modelSettings = {}
-              
-        
+    
     if 'thisLoss' in modelSettings.keys():
         thisLoss = modelSettings['thisLoss']
     else:
         thisLoss = SLOGtools.myLoss
-        
+    
     if 'thisEvaluator' in modelSettings.keys():
         thisEvaluator = modelSettings['thisEvaluator']
     else:
         thisEvaluator = SLOGevaluator.evaluate   
-        
+    
     if 'thisObject' in modelSettings.keys():
         thisObject = modelSettings['thisObject']
     else:
         thisObject = SLOGobj.myFunction_slog_1
-
+    
     if 'device' in simuParas.keys():
         device = simuParas['device']
     else:
         device = 'cpu'
         simuParas['device'] = device  
 
- 
+    ## Model and optimization settings
     model_name = 'SLOG-Net'
-    # device = 'gpu'
     optimAlg = 'ADAM'
     learningRate = 0.001
     beta1 = 0.9
     beta2 = 0.999
 
-    # modelDirList
-    label = 'Best'
+    ## Extract experiment results
     saveDir = exp_result['saveDir']
     G = exp_result['Graph']
     loadedModel = exp_result['model']
     GA = G.A
-    d,An, eigenvalues, V = SLOGtools.get_eig_normalized_adj(GA)
+    d, An, eigenvalues, V = SLOGtools.get_eig_normalized_adj(GA)
     gso = An
-
-    # Test begins
+    
+    ## Initialize arrays to store results
     result = {}
     re_x = np.zeros(N_realiz)
     re_g = np.zeros(N_realiz)   
     acc_x = np.zeros(N_realiz)
     elapse = np.zeros(N_realiz) 
+    
+    ## Loop through realizations for testing
     for n_realiz in range(N_realiz):
-        X = SLOGtools.X_generate(nNodes,P,S)
-        g0 = SLOGtools.h_generate_gso(nNodes,alpha, eigenvalues,L)
-        X = to_numpy(X)
-        g0 = to_numpy(g0)
-        V = to_numpy(V)
-        g0 = C*g0/np.sum(g0)
-        h0 = 1./g0
-        H = np.dot(V,np.dot(np.diag(h0),V.T))
-        if noiseType == 'gaussion':
-            noise = np.random.normal(0,1,[nNodes, P])
-            noise = noise/LA.norm(noise,'fro')*LA.norm(X,'fro')
+        X = SLOGtools.X_generate(nNodes, P, S)  # Generate input data
+        g0 = SLOGtools.h_generate_gso(nNodes, alpha, eigenvalues, L)  # Generate filter
+        
+        # Convert data to NumPy arrays
+        X, g0, V = map(to_numpy, (X, g0, V))
+        g0 = C * g0 / np.sum(g0)  # Normalize filter coefficients
+        h0 = 1. / g0
+        H = np.dot(V, np.dot(np.diag(h0), V.T))  # Compute filter matrix
+        
+        ## Generate noise based on noise type
+        if noiseType == 'gaussian':
+            noise = np.random.normal(0, 1, [nNodes, P])
+            noise = noise / LA.norm(noise, 'fro') * LA.norm(X, 'fro')
         elif noiseType == 'uniform':
-            noise = np.random.uniform(-1,1,[nNodes, P])
-            noise = noise/np.max(np.abs(noise))*np.max(np.abs(X))
+            noise = np.random.uniform(-1, 1, [nNodes, P])
+            noise = noise / np.max(np.abs(noise)) * np.max(np.abs(X))
         else:
             noise = np.zeros([nNodes, P])
-        Y = np.dot(H,X) + noiseLevel*noise
-        Y_test = to_torch(Y)
-
-        start_timer = timer()
-        x_hat, g_hat = loadedModel.archit(Y_test)     
-        end_timer = timer()
-        elapse[n_realiz] = end_timer - start_timer
-
-        g_hat = to_numpy(g_hat)  
         
-        # if normalize_g_hat:
-        g_hat = C*g_hat/np.sum(g_hat)      
-        Z = linalg.khatri_rao(np.dot(Y.T,V),V)
-        x_recv = np.dot(Z,g_hat)
-        X_recv = x_recv.reshape((P,nNodes)).T
-        re_x_1 = LA.norm(X_recv - X,'fro')/LA.norm(X,'fro')
-        re_g_1 = LA.norm(g0 - g_hat)/LA.norm(g0)
-        re_x_2 = LA.norm(X_recv + X,'fro')/LA.norm(X,'fro')
-        re_g_2 = LA.norm(g0 + g_hat)/LA.norm(g0) 
-        if re_g_1 > re_g_2:
-            re_g[n_realiz], re_x[n_realiz] = re_g_2, re_x_2
-            acc_x[n_realiz] = accuracy_score(X.reshape(nNodes*P)> 0.1, -X_recv.reshape(nNodes*P)>0.1)
-        else:
-            re_g[n_realiz], re_x[n_realiz] = re_g_1, re_x_1 
-            acc_x[n_realiz] = accuracy_score(X.reshape(nNodes*P)> 0.1, -X_recv.reshape(nNodes*P)>0.1)              
-    result = {'re_x': re_x,
-          're_g': re_g,
-          'acc_x': acc_x,
-          'elapse': elapse
-    }
+        Y = np.dot(H, X) + noiseLevel * noise  # Apply filter and add noise
+        Y_test = to_torch(Y)  # Convert to torch tensor
+        
+        ## Perform model inference
+        start_timer = timer()
+        x_hat, g_hat = loadedModel.archit(Y_test)  # Get model predictions
+        end_timer = timer()
+        elapse[n_realiz] = end_timer - start_timer  # Measure execution time
+
+        g_hat = to_numpy(g_hat)  # Convert to NumPy
+        g_hat = C * g_hat / np.sum(g_hat)  # Normalize estimated filter
+        
+        ## Compute reconstruction error
+        Z = linalg.khatri_rao(np.dot(Y.T, V), V)
+        x_recv = np.dot(Z, g_hat)
+        X_recv = x_recv.reshape((P, nNodes)).T
+        
+        re_x[n_realiz] = LA.norm(X_recv - X, 'fro') / LA.norm(X, 'fro')
+        re_g[n_realiz] = LA.norm(g0 - g_hat) / LA.norm(g0)
+        acc_x[n_realiz] = accuracy_score(X.reshape(nNodes * P) > 0.1, -X_recv.reshape(nNodes * P) > 0.1)
+    
+    ## Store and return results
+    result = {'re_x': re_x, 're_g': re_g, 'acc_x': acc_x, 'elapse': elapse}
     return result
 
 def test_admmCompare_local(nNodes, P, S, exp_result, **kwargs):
