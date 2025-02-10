@@ -1,0 +1,35 @@
+{
+    "useGPU": true,
+    "simuParas": {
+        "nNodes": 20,
+        "S": 3,
+        "P": 200,
+        "nTrain": 100000,
+        "batchsize": 200,
+        "nValid": 200,
+        "nTest": 200,
+        "L": 5,
+        "noiseLevel": 0.0,
+        "noiseType": "uniform",
+        "filterType": "h",
+        "signalMode": "Gaussian",
+        "trainMode": "default",
+        "filterMode": "default",
+        "selectMode": "random",
+        "graphType": "ER",
+        "alpha": 1.0,
+        "nEpochs": 30,
+        "device": "cuda",
+        "tMax": 5,
+        "early_stop_criteria": 1e-5
+    },
+    "modelParas": {
+        "filterTrainType": "h",
+        "C": 20,
+        "q": 2,
+        "K": 5
+    },
+    "expParas": {
+        "nRealiz": 5
+    }
+}
