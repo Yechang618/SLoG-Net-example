@@ -1,6 +1,6 @@
-###
-python run_experiment.py --output_file "output_results.json" --useGPU True
-python run_experiment.py
+### Example
+# python run_experiment.py --output_file "output_results.json" --useGPU True
+# python run_experiment.py
 ###
 
 import numpy as np

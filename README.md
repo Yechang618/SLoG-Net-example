@@ -1,5 +1,7 @@
 # SLoG-Net
 This is the example of SLoG-Net. Please run SLoG-Net-example.ipynb.
+Or run: python run_experiment.py --output_file "output_results.json" --useGPU True
+
 The related paper is: Ye, Chang, and Gonzalo Mateos. "Learning to Identify Sources of Network Diffusion." 2022 30th European Signal Processing Conference (EUSIPCO). IEEE, 2022.
 Another related paper is: Ye, Chang, and Gonzalo Mateos. "SLoG-Net: Algorithm Unrolling for Source Localization on Graphs."
 
