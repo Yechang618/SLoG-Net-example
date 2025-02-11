@@ -19,7 +19,7 @@
         "graphType": "ER",
         "alpha": 1.0,
         "nEpochs": 30,
-        "device": "cuda",
+        "device": "cuda:0",
         "tMax": 5,
         "early_stop_criteria": 1e-5
     },
