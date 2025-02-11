@@ -30,6 +30,7 @@ def run_experiment(config_file):
     simuParas = config["simuParas"]
     modelParas = config["modelParas"]
     expParas = config["expParas"]
+    simuParas["device"] = device
 
     # Training
     graphOptions = {'probIntra': 0.3}
