@@ -116,12 +116,13 @@ class slog_experiments():
         if not os.path.exists(saveDir):
             os.makedirs(saveDir)
 
-        useGPU = True
-        if useGPU and torch.cuda.is_available():
-            device = 'cuda:0'
-            torch.cuda.empty_cache()
-        else:
-            device = 'cpu'
+        # useGPU = True
+        # if useGPU and torch.cuda.is_available():
+        #     device = 'cuda:0'
+        #     torch.cuda.empty_cache()
+        # else:
+        #     device = 'cpu'
+        device = self.simuParas['device']
         # Notify:
         print("Device selected: %s" % device)   
   
@@ -138,8 +139,51 @@ class slog_experiments():
         SLOGtools.writeVarValues(varsFile, {'nTrain_slog': self.nTrain,
                                   'nValid': self.nValid,
                                   'nTest': self.nTest,
-                                  'useGPU': useGPU})
+                                  'useGPU': device})
+        optimAlg = 'ADAM'   
+        learningRate = 0.01 
+        beta1 = 0.9 
+        beta2 = 0.999
+            
+        ## Graph generation
+        G = SLOGtools.Graph(self.graphType, self.nNodes, self.graphOptions, save_dir = saveDir)
+        G.computeGFT()
+        d,An, eigenvalues, V   = SLOGtools.get_eig_normalized_adj(G.A)
+        
+        ## Data generation
+        data = SLOGdata.SLOG_GeneralData(G, self.nTrain, self.nValid, self.nTest, self.S, V, eigenvalues, L = self.L, alpha = self.alpha,filterType = self.filterType, noiseLevel = self.noiseLevel, noiseType = self.noiseType)
+        data.expandDims()
+        
+        C = self.C
+        K = self.K
+        filterTrainType = self.filterTrainType #'g'
+        thisLoss = SLOGtools.myLoss
+        thisEvaluator = SLOGevaluator.evaluate
+        
+        thisObject = SLOGobj.myFunction_slog_3 # SLoG-Net with learnable constraint
+        SLOG_net = SLOGarchi.GraphSLoG_v3(V,self.nNodes,self.q,self.K, thisObject)        
 
+        model_name = 'SLOG-Net'
+
+        thisOptim = optim.Adam(SLOG_net.parameters(), lr = learningRate, betas = (beta1,beta2))
+        thisTrainer = SLOGtrainer.slog_Trainer
+
+        myModel = SLOGmodel.Model(SLOG_net,thisLoss,thisOptim, thisTrainer,thisEvaluator,device, model_name,  saveDir)
+        
+        result_train = myModel.train(data,self.nEpochs, self.batchsize, validationInterval = 40,trainMode = self.trainMode, filterTrainType = self.filterTrainType) # model, data, nEpochs, batchSize
+        
+        best_model = result_train['bestModel']
+        minLossValid = result_train['minLossValid']
+        minLossTrain = result_train['minLossTrain']
+          
+        results = {}
+        results['model'] = myModel
+        results['training result'] = result_train
+        results['Graph'] = G
+        results['saveDir'] = saveDir
+        
+        return results
+    
 def test_local(nNodes, P, S, exp_result, **kwargs):
     """
     Function to test the SLOG-Net model locally using generated data.
@@ -582,7 +626,7 @@ def to_torch(x):
 ############### ADMM solver ###########
 def admm_solver(Y,V,rho_0,eta_0,C,N_ite,max_re = 1e-6, device = 'cpu'):
     [N,P] = Y.shape
-    Z = torch.tensor(linalg.khatri_rao(np.dot(np.transpose(Y),V),V)).double()
+    Z = torch.tensor(linalg.khatri_rao(np.dot(np.transpose(Y),V),V)).to(device,dtype = torch.float64)    
     V = torch.from_numpy(V).double()
     eta = torch.tensor(np.random.rand(1)).to(device,dtype = torch.float64)    
     g = torch.tensor(np.random.rand(N)).to(device,dtype = torch.float64)
