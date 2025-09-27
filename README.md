@@ -23,8 +23,8 @@ python run_experiment.py --output_file "output_results.json" --useGPU True
 This work is based on the following publications:
 
 1. Ye, Chang, and Gonzalo Mateos. "Learning to Identify Sources of Network Diffusion." 2022 30th European Signal Processing Conference (EUSIPCO). IEEE, 2022.
-2. Ye, Chang, and Gonzalo Mateos. "SLoG-Net: Algorithm Unrolling for Source Localization on Graphs."
+2. Ye, Chang, and Gonzalo Mateos. "BDoG-Net: Algorithm Unrolling for Blind Deconvolution on Graphs," in IEEE Transactions on Signal and Information Processing over Networks, vol. 11, pp. 1200-1213, 2025
 
 ## Author
 
-Chang Ye, cye7@ur.rochester.edu
+Chang Ye, chang.ye@my.cityu.edu.hk, cye7@ur.rochester.edu
